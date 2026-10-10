@@ -6,6 +6,7 @@ plugins {
 android {
     namespace = "com.agency.app"
     compileSdk = 33
+
     defaultConfig {
         applicationId = "com.agency.app"
         minSdk = 24
@@ -13,14 +14,27 @@ android {
         versionCode = 1
         versionName = "1.0"
     }
+
+    // Fix Java and Kotlin JVM target mismatch
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
     buildTypes {
         getByName("debug") {
             isMinifyEnabled = false
         }
     }
+
     buildFeatures {
         compose = true
     }
+
     composeOptions {
         kotlinCompilerExtensionVersion = "1.4.3"
     }

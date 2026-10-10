@@ -17,11 +17,14 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Install Gradle 8.5
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gradle
+          # Force specific version if needed, but default ubuntu-latest usually has stable gradle
 
       - name: Build with Gradle
-        run: ./gradlew assembleDebug
+        run: gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

@@ -5,11 +5,11 @@ plugins {
 
 android {
     namespace = "com.agency.app"
-    compileSdk = 34
+    compileSdk = 33
     defaultConfig {
         applicationId = "com.agency.app"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 33
         versionCode = 1
         versionName = "1.0"
     }
@@ -22,18 +22,14 @@ android {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"
+        kotlinCompilerExtensionVersion = "1.4.3"
     }
 }
 
 dependencies {
-    // Use the Compose BOM (Bill of Materials) to fix all version conflicts automatically
-    implementation(platform("androidx.compose:compose-bom:2023.10.01"))
-    
-    implementation("androidx.core:core-ktx:1.12.0")
-    implementation("androidx.activity:activity-compose:1.8.2")
-    
-    // No versions specified here; they are managed by the BOM above
+    implementation(platform("androidx.compose:compose-bom:2023.05.01"))
+    implementation("androidx.core:core-ktx:1.9.0")
+    implementation("androidx.activity:activity-compose:1.7.0")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui-tooling-preview")

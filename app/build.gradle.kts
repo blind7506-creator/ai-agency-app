@@ -1,4 +1,4 @@
-&plugins {
+plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
@@ -15,7 +15,6 @@ android {
         versionName = "1.0"
     }
 
-    // Fix Java and Kotlin JVM target mismatch
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

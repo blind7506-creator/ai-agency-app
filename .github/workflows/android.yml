@@ -17,13 +17,12 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Install Gradle 8.5
+      - name: Install Gradle
         run: |
           sudo apt-get update
           sudo apt-get install -y gradle
-          # Force specific version if needed, but default ubuntu-latest usually has stable gradle
 
-      - name: Build with Gradle
+      - name: Build APK
         run: gradle assembleDebug
 
       - name: Upload APK

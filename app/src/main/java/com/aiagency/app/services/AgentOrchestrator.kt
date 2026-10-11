@@ -63,6 +63,7 @@ class AgentOrchestrator(
 
     suspend fun resumeApprovedTask(taskId: String, approvedBy: String) {
         val task = taskRepo.getTask(taskId) ?: return
+        val agent = registry.getAgent(task.assignedAgentId) ?: return
         val approval = approvalRepo.getApprovalByTaskId(taskId) ?: return
 
         approvalRepo.saveApproval(approval.copy(
@@ -73,9 +74,37 @@ class AgentOrchestrator(
 
         auditRepo.logEvent("Task $taskId approved by $approvedBy. Resuming execution...")
 
-        // In a real system, this would re-trigger the specific logic
-        // For now, we simulate completion since we use a MockLLM
-        updateTaskState(task.copy(status = TaskStatus.COMPLETED, output = "Action approved and executed successfully."))
+        try {
+            registry.updateAgentStatus(agent.id, AgentStatus.BUSY)
+            val result = performActualExecution(agent, task.input)
+            updateTaskState(task.copy(status = TaskStatus.COMPLETED, output = result))
+            registry.updateAgentStatus(agent.id, AgentStatus.IDLE)
+            registry.incrementTaskCount(agent.id)
+            auditRepo.logEvent("Resumed task $taskId successfully completed.")
+        } catch (e: Exception) {
+            updateTaskState(task.copy(status = TaskStatus.FAILED, error = e.message))
+            registry.updateAgentStatus(agent.id, AgentStatus.ERROR)
+            auditRepo.logEvent("Error resuming task $taskId: ${e.message}")
+        }
+    }
+
+    suspend fun rejectTask(taskId: String, rejectedBy: String) {
+        val task = taskRepo.getTask(taskId) ?: return
+        val approval = approvalRepo.getApprovalByTaskId(taskId) ?: return
+
+        approvalRepo.saveApproval(approval.copy(
+            status = "REJECTED",
+            decisionBy = rejectedBy,
+            decisionTimestamp = System.currentTimeMillis()
+        ))
+
+        updateTaskState(task.copy(status = TaskStatus.FAILED, error = "Rejected by $rejectedBy"))
+        auditRepo.logEvent("Task $taskId rejected by $rejectedBy")
+    }
+
+    private suspend fun performActualExecution(agent: Agent, input: String): String {
+        val prompt = "You are ${agent.name}, the ${agent.role}. ${agent.description}\nSystem Instructions: ${agent.systemInstructions}\nTask: $input"
+        return llmProvider.generateResponse(prompt).getOrThrow()
     }
 
     private fun requiresApproval(capability: String): Boolean {

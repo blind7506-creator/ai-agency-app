@@ -23,6 +23,7 @@ import androidx.navigation.compose.NavHostController
 import com.aiagency.app.ui.screens.PlaceholderScreen
 import com.aiagency.app.ui.theme.AIAgencyTheme
 import com.aiagency.app.ui.screens.AgentsScreen
+import com.aiagency.app.ui.screens.ApprovalQueueScreen
 import com.aiagency.app.domain.Agent
 import com.aiagency.app.services.AgentRegistry
 import com.aiagency.app.services.AgencyDefaults
@@ -122,7 +123,9 @@ fun AppNavHost(navController: NavHostController) {
             AgentsScreen(registry)
         }
         composable("work") { PlaceholderScreen("Work/Analytics") }
-        composable("activity") { PlaceholderScreen("Activity/Logs") }
+        composable("activity") {
+            ApprovalQueueScreen(approvalRepo, orchestrator)
+        }
         composable("more") { PlaceholderScreen("More/Profile") }
 
         // Other placeholders

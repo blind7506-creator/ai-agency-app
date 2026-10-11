@@ -1,6 +1,7 @@
 package com.aiagency.app.services
 
 import com.aiagency.app.domain.Agent
+import com.aiagency.app.domain.AgentStatus
 import java.util.concurrent.ConcurrentHashMap
 
 class AgentRegistry {
@@ -18,9 +19,21 @@ class AgentRegistry {
         return agents.values.find { it.capabilities.contains(capability) }
     }
 
-    fun updateAgentStatus(id: String, status: com.aiagency.app.domain.AgentStatus) {
+    fun updateAgentStatus(id: String, status: AgentStatus) {
         agents[id]?.let {
             agents[id] = it.copy(status = status)
+        }
+    }
+
+    fun incrementTaskCount(id: String) {
+        agents[id]?.let {
+            agents[id] = it.copy(taskCount = it.taskCount + 1)
+        }
+    }
+
+    fun toggleAgentEnabled(id: String) {
+        agents[id]?.let {
+            agents[id] = it.copy(isEnabled = !it.isEnabled)
         }
     }
 }

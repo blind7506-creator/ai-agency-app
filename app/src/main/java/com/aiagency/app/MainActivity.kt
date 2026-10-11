@@ -128,12 +128,39 @@ fun AgentsScreen(registry: AgentRegistry) {
                 elevation = CardDefaults.cardElevation(4.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(text = agent.name, style = MaterialTheme.typography.headlineSmall)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
+                    ) {
+                        Text(text = agent.name, style = MaterialTheme.typography.headlineSmall)
+                        Text(
+                            text = agent.operationalStatus.name.replace("_", " "),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (agent.operationalStatus == com.aiagency.app.domain.AgentOperationalStatus.CONNECTED_AND_VERIFIED)
+                                    androidx.compose.ui.graphics.Color.Green
+                                    else androidx.compose.ui.graphics.Color.Gray
+                        )
+                    }
                     Text(text = agent.role, style = MaterialTheme.typography.bodyMedium)
                     Text(text = agent.description, style = MaterialTheme.typography.bodySmall)
-                    Text(text = "Status: ${agent.status}", style = MaterialTheme.typography.labelSmall)
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "Status: ${agent.status}", style = MaterialTheme.typography.labelSmall)
+                        Text(text = "Tasks: ${agent.taskCount}", style = MaterialTheme.typography.labelSmall)
+                    }
+                    Text(text = "Last Activity: ${agent.lastActivity}", style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
     }
+}
+
+@Composable
+fun Spacer(modifier: Modifier) {
+    androidx.compose.foundation.layout.Spacer(modifier = modifier)
 }

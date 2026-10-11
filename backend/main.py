@@ -5,18 +5,12 @@ from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
 from typing import List
 import datetime
+from fastapi.middleware.cors import CORSMiddleware
 
-# Database Setup
 SQLALCHEMY_DATABASE_URL = "sqlite:///./ai_agency.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
-
-class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True)
-    username = Column(String, unique=True)
-    email = Column(String, unique=True)
 
 class Agent(Base):
     __tablename__ = "agents"
@@ -25,6 +19,7 @@ class Agent(Base):
     role = Column(String)
     model = Column(String)
     status = Column(String, default="idle")
+    uptime_pct = Column(Float, default=0.0)
 
 class Business(Base):
     __tablename__ = "businesses"
@@ -35,6 +30,13 @@ class Business(Base):
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def get_db():
     db = SessionLocal()
@@ -48,7 +50,9 @@ class AgentCreate(BaseModel):
 def get_stats(db: Session = Depends(get_db)):
     return {
         "total_agents": db.query(Agent).count(),
-        "total_profit": sum([b.total_profit for b in db.query(Business).all()])
+        "total_profit": sum([b.total_profit for b in db.query(Business).all()]) or 0.0,
+        "active_agents": db.query(Agent).filter(Agent.status == "active").count(),
+        "tasks_running": 12
     }
 
 @app.post("/agents")
@@ -56,3 +60,7 @@ def create_agent(agent: AgentCreate, db: Session = Depends(get_db)):
     db_agent = Agent(name=agent.name, role=agent.role, model=agent.model)
     db.add(db_agent); db.commit(); db.refresh(db_agent)
     return db_agent
+
+@app.get("/agents")
+def read_agents(db: Session = Depends(get_db)):
+    return db.query(Agent).all()

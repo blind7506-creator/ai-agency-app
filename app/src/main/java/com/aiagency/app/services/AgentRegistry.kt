@@ -2,38 +2,55 @@ package com.aiagency.app.services
 
 import com.aiagency.app.domain.Agent
 import com.aiagency.app.domain.AgentStatus
-import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
-class AgentRegistry {
-    private val agents = ConcurrentHashMap<String, Agent>()
+class AgentRegistry(private val onAgentUpdated: (Agent) -> Unit) {
+    private val _agents = MutableStateFlow<Map<String, Agent>>(emptyMap())
+    val agents: StateFlow<Map<String, Agent>> = _agents.asStateFlow()
 
     fun registerAgent(agent: Agent) {
-        agents[agent.id] = agent
+        val current = _agents.value.toMutableMap()
+        current[agent.id] = agent
+        _agents.value = current
     }
 
-    fun getAgent(id: String): Agent? = agents[id]
+    fun getAgent(id: String): Agent? = _agents.value[id]
 
-    fun listAgents(): List<Agent> = agents.values.toList()
+    fun listAgents(): List<Agent> = _agents.value.values.toList()
 
     fun findAgentByCapability(capability: String): Agent? {
-        return agents.values.find { it.capabilities.contains(capability) }
+        return _agents.value.values.find { it.capabilities.contains(capability) }
     }
 
     fun updateAgentStatus(id: String, status: AgentStatus) {
-        agents[id]?.let {
-            agents[id] = it.copy(status = status)
+        val current = _agents.value.toMutableMap()
+        current[id]?.let {
+            val updated = it.copy(status = status)
+            current[id] = updated
+            _agents.value = current
+            onAgentUpdated(updated)
         }
     }
 
     fun incrementTaskCount(id: String) {
-        agents[id]?.let {
-            agents[id] = it.copy(taskCount = it.taskCount + 1)
+        val current = _agents.value.toMutableMap()
+        current[id]?.let {
+            val updated = it.copy(taskCount = it.taskCount + 1)
+            current[id] = updated
+            _agents.value = current
+            onAgentUpdated(updated)
         }
     }
 
     fun toggleAgentEnabled(id: String) {
-        agents[id]?.let {
-            agents[id] = it.copy(isEnabled = !it.isEnabled)
+        val current = _agents.value.toMutableMap()
+        current[id]?.let {
+            val updated = it.copy(isEnabled = !it.isEnabled)
+            current[id] = updated
+            _agents.value = current
+            onAgentUpdated(updated)
         }
     }
 }

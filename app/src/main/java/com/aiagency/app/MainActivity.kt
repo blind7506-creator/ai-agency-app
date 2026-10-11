@@ -20,8 +20,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHostController
-import com.aiagency.app.ui.screens.PlaceholderScreen
-import com.aiagency.app.ui.theme.AIAgencyTheme
+import com.aiagency.app.ui.screens.DashboardScreen
+import com.aiagency.app.ui.screens.ChatScreen
+import com.aiagency.app.ui.screens.SettingsScreen
 import com.aiagency.app.ui.screens.AgentsScreen
 import com.aiagency.app.ui.screens.ApprovalQueueScreen
 import com.aiagency.app.domain.Agent
@@ -91,42 +92,65 @@ fun BottomNavigationBar(navController: NavHostController) {
 
 @Composable
 fun AppNavHost(navController: NavHostController) {
-    // Initialize Core Engine components
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // Initialize Real Room Database
+    val db = remember {
+        Room.databaseBuilder(
+            context.applicationContext,
+            AppDatabase::class.java,
+            "ai_agency_db"
+        ).build()
+    }
+
+    // Repositories using real DAOs
+    val agentRepo = remember { AgentRepository(db.agentDao()) }
+    val taskRepo = remember { TaskRepository(db.taskDao()) }
+    val auditRepo = remember { AuditRepository(db.auditDao()) }
+    val approvalRepo = remember { ApprovalRepository(db.approvalDao()) }
+
     val registry = remember {
-        AgentRegistry().apply {
-            AgencyDefaults.initialAgents.forEach { registerAgent(it) }
+        AgentRegistry(onAgentUpdated = { agent ->
+            scope.launch { agentRepo.saveAgent(agent) }
+        })
+    }
+
+    // Agent Seeding Logic: Load from Room, then seed defaults if empty
+    LaunchedEffect(Unit) {
+        val persistedAgents = agentRepo.getAgents().first()
+        if (persistedAgents.isEmpty()) {
+            AgencyDefaults.initialAgents.forEach { agent ->
+                registry.registerAgent(agent)
+                agentRepo.saveAgent(agent)
+            }
+        } else {
+            persistedAgents.forEach { registry.registerAgent(it) }
         }
     }
+
     val llmProvider = remember { MockLLMProvider() }
-
-    // Repositories (using mock implementations as Room requires a Context)
-    val taskRepo = remember { TaskRepository(object : TaskDao {
-        override fun getAllTasks() = kotlinx.coroutines.flow.MutableStateFlow(emptyList())
-        override suspend fun upsertTask(task: TaskEntity) {}
-        override suspend fun getTaskById(id: String) = null
-    }) }
-    val auditRepo = remember { AuditRepository(object : AuditDao {
-        override fun getLogs() = kotlinx.coroutines.flow.MutableStateFlow(emptyList())
-        override suspend fun insertLog(log: AuditLogEntity) {}
-    }) }
-    val approvalRepo = remember { ApprovalRepository(object : ApprovalDao {
-        override fun getPendingApprovals() = kotlinx.coroutines.flow.MutableStateFlow(emptyList())
-        override suspend fun upsertApproval(approval: ApprovalEntity) {}
-        override suspend fun getApprovalByTaskId(taskId: String) = null
-    }) }
-
-    val orchestrator = remember { AgentOrchestrator(registry, llmProvider, taskRepo, auditRepo, approvalRepo) }
+    val orchestrator = remember {
+        AgentOrchestrator(
+            registry,
+            llmProvider,
+            taskRepo,
+            auditRepo,
+            approvalRepo,
+            context.filesDir
+        )
+    }
 
     NavHost(navController = navController, startDestination = "chat") {
-        composable("chat") { PlaceholderScreen("Home/Chat") }
+        composable("chat") { ChatScreen(orchestrator) }
         composable("agents") {
             AgentsScreen(registry)
         }
-        composable("work") { PlaceholderScreen("Work/Analytics") }
+        composable("work") { DashboardScreen(registry, { navController.navigate("agents") }, { navController.navigate("activity") }) }
         composable("activity") {
             ApprovalQueueScreen(approvalRepo, orchestrator)
         }
-        composable("more") { PlaceholderScreen("More/Profile") }
+        composable("more") { SettingsScreen() }
 
         // Other placeholders
         composable("analytics") { PlaceholderScreen("Analytics") }

@@ -12,10 +12,13 @@ import androidx.compose.ui.unit.dp
 import com.aiagency.app.domain.Agent
 import com.aiagency.app.domain.AgentOperationalStatus
 import com.aiagency.app.services.AgentRegistry
+import androidx.compose.runtime.collectAsState
+
 
 @Composable
 fun AgentsScreen(registry: AgentRegistry) {
-    val agents = registry.listAgents()
+    val agents by registry.agents.collectAsState()
+    val agentList = agents.values.toList()
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text(
@@ -25,7 +28,7 @@ fun AgentsScreen(registry: AgentRegistry) {
         )
 
         LazyColumn {
-            items(agents) { agent ->
+            items(agentList) { agent ->
                 AgentCard(agent, onToggle = { registry.toggleAgentEnabled(agent.id) })
             }
         }

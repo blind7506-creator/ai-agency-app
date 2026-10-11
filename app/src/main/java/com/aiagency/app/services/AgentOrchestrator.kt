@@ -2,6 +2,7 @@ package com.aiagency.app.services
 
 import com.aiagency.app.domain.*
 import com.aiagency.app.data.*
+import com.aiagency.app.services.tools.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,10 +13,19 @@ class AgentOrchestrator(
     private val llmProvider: LLMProvider,
     private val taskRepo: TaskRepository,
     private val auditRepo: AuditRepository,
-    private val approvalRepo: ApprovalRepository
+    private val approvalRepo: ApprovalRepository,
+    private val workspaceDir: File
 ) {
     private val _tasks = MutableStateFlow<List<AgentTask>>(emptyList())
     val tasks: StateFlow<List<AgentTask>> = _tasks.asStateFlow()
+
+    private val availableTools: List<AgencyTool> by lazy {
+        listOf(
+            WebSearchTool(),
+            FileSystemTool(workspaceDir),
+            HttpTool()
+        )
+    }
 
     suspend fun executeTask(input: String, requiredCapability: String): Result<String> {
         val agent = registry.findAgentByCapability(requiredCapability)
@@ -44,15 +54,14 @@ class AgentOrchestrator(
                 return Result.failure(Exception("Action requires explicit approval"))
             }
 
-            val prompt = "You are ${agent.name}, the ${agent.role}. ${agent.description}\nSystem Instructions: ${agent.systemInstructions}\nTask: $input"
-            val response = llmProvider.generateResponse(prompt).getOrThrow()
+            val result = processWithToolLoop(agent, input)
 
-            updateTaskState(task.copy(status = TaskStatus.COMPLETED, output = response))
+            updateTaskState(task.copy(status = TaskStatus.COMPLETED, output = result))
             registry.updateAgentStatus(agent.id, AgentStatus.IDLE)
             registry.incrementTaskCount(agent.id)
             auditRepo.logEvent("Agent ${agent.name} successfully completed task ${task.id}")
 
-            Result.success(response)
+            Result.success(result)
         } catch (e: Exception) {
             updateTaskState(task.copy(status = TaskStatus.FAILED, error = e.message))
             registry.updateAgentStatus(agent.id, AgentStatus.ERROR)
@@ -76,7 +85,7 @@ class AgentOrchestrator(
 
         try {
             registry.updateAgentStatus(agent.id, AgentStatus.BUSY)
-            val result = performActualExecution(agent, task.input)
+            val result = processWithToolLoop(agent, task.input)
             updateTaskState(task.copy(status = TaskStatus.COMPLETED, output = result))
             registry.updateAgentStatus(agent.id, AgentStatus.IDLE)
             registry.incrementTaskCount(agent.id)
@@ -86,6 +95,49 @@ class AgentOrchestrator(
             registry.updateAgentStatus(agent.id, AgentStatus.ERROR)
             auditRepo.logEvent("Error resuming task $taskId: ${e.message}")
         }
+    }
+
+    private suspend fun processWithToolLoop(agent: Agent, input: String): String {
+        var currentInput = input
+        var iterations = 0
+        val maxIterations = 5
+        val seenCalls = mutableSetOf<String>()
+
+        while (iterations < maxIterations) {
+            val prompt = "You are ${agent.name}, the ${agent.role}. ${agent.description}\nSystem Instructions: ${agent.systemInstructions}\nTask: $currentInput"
+
+            val toolCallResult = llmProvider.generateToolCall(prompt, availableTools)
+
+            if (toolCallResult.isSuccess) {
+                val toolCall = toolCallResult.getOrThrow()
+
+                // Prevent infinite loops of identical calls
+                val callSignature = "${toolCall.toolName}:${toolCall.arguments}"
+                if (seenCalls.contains(callSignature)) {
+                    return "Error: Agent entered a loop by making the same tool call repeatedly. Last tool: ${toolCall.toolName}"
+                }
+                seenCalls.add(callSignature)
+
+                val tool = availableTools.find { it.name == toolCall.toolName }
+                    ?: throw Exception("Tool ${toolCall.toolName} not found")
+
+                auditRepo.logEvent("Agent ${agent.name} using tool ${tool.name}")
+                val toolResult = tool.execute(toolCall.arguments)
+
+                val resultText = when (toolResult) {
+                    is ToolResult.Success -> toolResult.output
+                    is ToolResult.Failure -> "Tool Error: ${toolResult.error}"
+                }
+
+                currentInput = "Tool ${tool.name} returned: $resultText\nOriginal Task: $input\nContinue and provide final answer."
+                iterations++
+            } else {
+                // No more tool calls needed, get final response
+                return llmProvider.generateResponse(prompt).getOrThrow()
+            }
+        }
+
+        return "Maximum tool iterations reached. Last known state: $currentInput"
     }
 
     suspend fun rejectTask(taskId: String, rejectedBy: String) {
@@ -100,11 +152,6 @@ class AgentOrchestrator(
 
         updateTaskState(task.copy(status = TaskStatus.FAILED, error = "Rejected by $rejectedBy"))
         auditRepo.logEvent("Task $taskId rejected by $rejectedBy")
-    }
-
-    private suspend fun performActualExecution(agent: Agent, input: String): String {
-        val prompt = "You are ${agent.name}, the ${agent.role}. ${agent.description}\nSystem Instructions: ${agent.systemInstructions}\nTask: $input"
-        return llmProvider.generateResponse(prompt).getOrThrow()
     }
 
     private fun requiresApproval(capability: String): Boolean {

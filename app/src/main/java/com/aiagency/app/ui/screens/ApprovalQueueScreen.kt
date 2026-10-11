@@ -11,15 +11,24 @@ import androidx.compose.ui.unit.dp
 import com.aiagency.app.data.ApprovalEntity
 import com.aiagency.app.services.AgentOrchestrator
 import com.aiagency.app.data.ApprovalRepository
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+
 
 @Composable
 fun ApprovalQueueScreen(
     approvalRepo: ApprovalRepository,
     orchestrator: AgentOrchestrator
 ) {
-    // In a real app, this would be a collected StateFlow from the repository
     var pendingApprovals by remember { mutableStateOf(emptyList<ApprovalEntity>()) }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            pendingApprovals = approvalRepo.getPendingApprovals().first()
+            kotlinx.coroutines.delay(2000)
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text(
@@ -38,15 +47,13 @@ fun ApprovalQueueScreen(
                     ApprovalCard(
                         approval = approval,
                         onApprove = {
-                            kotlinx.coroutines.launch {
+                            scope.launch {
                                 orchestrator.resumeApprovedTask(approval.taskId, "User")
-                                // Refresh list (simplified)
                             }
                         },
                         onReject = {
-                            kotlinx.coroutines.launch {
+                            scope.launch {
                                 orchestrator.rejectTask(approval.taskId, "User")
-                                // Refresh list (simplified)
                             }
                         }
                     )

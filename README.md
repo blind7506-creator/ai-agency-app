@@ -24,10 +24,11 @@ As the project is developed in a Termux environment, local compilation is not fe
 ## Known Limitations
 - **Local Build:** Cannot be run locally in Termux.
 - **Verification:** Foundation is verified via structural and syntax analysis only.
+- **Agent Capabilities:** Agents currently use a `MockLLMProvider`. They can route tasks and simulate responses but cannot perform real external platform actions (e.g., scraping, sending emails) until specific tool integrations are implemented.
 
 ## Roadmap
 - [x] Project Foundation (gradle, theme, navigation placeholders)
-- [ ] Domain Layer & Agent Orchestration
+- [x] Core Multi-Agent Engine (Domain models, Registry, Orchestrator, Basic Specialists)
 - [ ] Data Persistence (Room)
-- [ ] LLM Integration
+- [ ] LLM Integration (Actual API Provider)
 - [ ] UI Implementation for the 10 core areas

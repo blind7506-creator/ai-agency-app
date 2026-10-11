@@ -22,6 +22,23 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHostController
 import com.aiagency.app.ui.screens.PlaceholderScreen
 import com.aiagency.app.ui.theme.AIAgencyTheme
+import com.aiagency.app.domain.Agent
+import com.aiagency.app.services.AgentRegistry
+import com.aiagency.app.services.AgencyDefaults
+import com.aiagency.app.services.LLMProvider
+import com.aiagency.app.services.MockLLMProvider
+import com.aiagency.app.services.AgentOrchestrator
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,14 +88,25 @@ fun BottomNavigationBar(navController: NavHostController) {
 
 @Composable
 fun AppNavHost(navController: NavHostController) {
+    // Initialize Core Engine components
+    val registry = remember {
+        AgentRegistry().apply {
+            AgencyDefaults.initialAgents.forEach { registerAgent(it) }
+        }
+    }
+    val llmProvider = remember { MockLLMProvider() }
+    val orchestrator = remember { AgentOrchestrator(registry, llmProvider) }
+
     NavHost(navController = navController, startDestination = "chat") {
         composable("chat") { PlaceholderScreen("Home/Chat") }
-        composable("agents") { PlaceholderScreen("Agents") }
+        composable("agents") {
+            AgentsScreen(registry)
+        }
         composable("work") { PlaceholderScreen("Work/Analytics") }
         composable("activity") { PlaceholderScreen("Activity/Logs") }
         composable("more") { PlaceholderScreen("More/Profile") }
 
-        // Other placeholders can be added here as specific routes
+        // Other placeholders
         composable("analytics") { PlaceholderScreen("Analytics") }
         composable("business_details") { PlaceholderScreen("Business Details") }
         composable("improvement") { PlaceholderScreen("Business Improvement") }
@@ -87,5 +115,25 @@ fun AppNavHost(navController: NavHostController) {
         composable("profile") { PlaceholderScreen("Profile") }
         composable("command_center") { PlaceholderScreen("Command Center") }
         composable("previous_chats") { PlaceholderScreen("Previous Chats") }
+    }
+}
+
+@Composable
+fun AgentsScreen(registry: AgentRegistry) {
+    val agents = registry.listAgents()
+    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        items(agents) { agent ->
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                elevation = CardDefaults.cardElevation(4.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(text = agent.name, style = MaterialTheme.typography.headlineSmall)
+                    Text(text = agent.role, style = MaterialTheme.typography.bodyMedium)
+                    Text(text = agent.description, style = MaterialTheme.typography.bodySmall)
+                    Text(text = "Status: ${agent.status}", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
     }
 }

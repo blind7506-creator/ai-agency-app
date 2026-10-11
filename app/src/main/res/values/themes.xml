@@ -1,5 +1,5 @@
 <resources>
-    <style name="Theme.AIAgency" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.AIAgency" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorSecondary">@color/secondary</item>
         <item name="android:statusBarColor">@android:color/transparent</item>

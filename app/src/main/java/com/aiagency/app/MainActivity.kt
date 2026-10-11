@@ -22,12 +22,14 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHostController
 import com.aiagency.app.ui.screens.PlaceholderScreen
 import com.aiagency.app.ui.theme.AIAgencyTheme
+import com.aiagency.app.ui.screens.AgentsScreen
 import com.aiagency.app.domain.Agent
 import com.aiagency.app.services.AgentRegistry
 import com.aiagency.app.services.AgencyDefaults
 import com.aiagency.app.services.LLMProvider
 import com.aiagency.app.services.MockLLMProvider
 import com.aiagency.app.services.AgentOrchestrator
+import com.aiagency.app.data.*
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -95,7 +97,24 @@ fun AppNavHost(navController: NavHostController) {
         }
     }
     val llmProvider = remember { MockLLMProvider() }
-    val orchestrator = remember { AgentOrchestrator(registry, llmProvider) }
+
+    // Repositories (using mock implementations as Room requires a Context)
+    val taskRepo = remember { TaskRepository(object : TaskDao {
+        override fun getAllTasks() = kotlinx.coroutines.flow.MutableStateFlow(emptyList())
+        override suspend fun upsertTask(task: TaskEntity) {}
+        override suspend fun getTaskById(id: String) = null
+    }) }
+    val auditRepo = remember { AuditRepository(object : AuditDao {
+        override fun getLogs() = kotlinx.coroutines.flow.MutableStateFlow(emptyList())
+        override suspend fun insertLog(log: AuditLogEntity) {}
+    }) }
+    val approvalRepo = remember { ApprovalRepository(object : ApprovalDao {
+        override fun getPendingApprovals() = kotlinx.coroutines.flow.MutableStateFlow(emptyList())
+        override suspend fun upsertApproval(approval: ApprovalEntity) {}
+        override suspend fun getApprovalByTaskId(taskId: String) = null
+    }) }
+
+    val orchestrator = remember { AgentOrchestrator(registry, llmProvider, taskRepo, auditRepo, approvalRepo) }
 
     NavHost(navController = navController, startDestination = "chat") {
         composable("chat") { PlaceholderScreen("Home/Chat") }

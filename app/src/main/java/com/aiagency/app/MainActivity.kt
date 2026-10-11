@@ -164,5 +164,3 @@ fun AppNavHost(navController: NavHostController) {
     }
 }
 
-}
-

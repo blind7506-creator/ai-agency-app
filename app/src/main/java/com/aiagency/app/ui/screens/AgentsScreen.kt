@@ -98,5 +98,3 @@ fun StatusBadge(status: AgentOperationalStatus) {
         )
     }
 }
-
-}

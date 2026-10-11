@@ -81,7 +81,8 @@ fun ChatScreen(orchestrator: AgentOrchestrator) {
 
                         scope.launch {
                             val result = orchestrator.executeTask(userMsg, "general_consultancy")
-                            messages.add((result.getOrElse { it.message }) to false)
+                            val responseText = result.getOrElse { it.message ?: "An unknown error occurred" }
+                            messages.add(responseText to false)
                         }
                     }
                 },

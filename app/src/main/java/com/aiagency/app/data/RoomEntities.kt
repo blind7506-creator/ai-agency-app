@@ -1,4 +1,4 @@
-package com.aiagency.app.domain
+package com.aiagency.app.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

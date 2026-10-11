@@ -93,7 +93,4 @@ fun ApprovalCard(
     }
 }
 
-@Composable
-fun Spacer(modifier: Modifier) {
-    androidx.compose.foundation.layout.Spacer(modifier = modifier)
 }

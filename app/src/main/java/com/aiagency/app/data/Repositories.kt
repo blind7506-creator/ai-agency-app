@@ -71,5 +71,5 @@ class AuditRepository(private val auditDao: AuditDao) {
 class ApprovalRepository(private val approvalDao: ApprovalDao) {
     fun getPendingApprovals(): Flow<List<ApprovalEntity>> = approvalDao.getPendingApprovals()
     suspend fun saveApproval(approval: ApprovalEntity) = approvalDao.upsertApproval(approval)
-    suspend fun getApproval(taskId: String) = approvalDao.getApprovalByTaskId(taskId)
+    suspend fun getApprovalByTaskId(taskId: String) = approvalDao.getApprovalByTaskId(taskId)
 }
